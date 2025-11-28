@@ -110,6 +110,23 @@ class Parser:
                 self._eat('OP',')')
                 blk = self.parse_block()
                 stmt = ('while', cond, blk)
+            elif val=='[':  # possible list.enumerate
+                # parse list literal
+                self._advance()  # skip '['
+                items = []
+                while self.cur.type != 'OP' or self.cur.value != ']':
+                    items.append(self.parse_expr())
+                    if self.cur.type=='OP' and self.cur.value==',':
+                        self._advance()
+                self._eat('OP',']')
+                # check for .enumerate
+                if self.cur.type=='OP' and self.cur.value=='.':
+                    self._advance()
+                    if self.cur.type=='ID' and self.cur.value.lower()=='enumerate':
+                        self._advance()
+                        var_name = self._eat('ID').value
+                        blk = self.parse_block()
+                        stmt = ('enumerate', items, var_name, blk)
             else:
                 # function calls
                 name = self._eat('ID').value
