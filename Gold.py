@@ -10,29 +10,45 @@ def preprocess_gold(code):
         if not stripped or stripped.startswith("#"):
             continue  # skip comments and blank lines
 
-        # Remove Gold 'var' keyword
+        # Remove 'var' keyword
         line = re.sub(r'^\s*var\s+', '', line)
 
-        # Convert Gold lambda: name -> (var)(expr) -> Ruby: name = ->(var) { expr }
+        # Convert Gold lambda: name -> (var)(expr) -> Ruby lambda
         line = re.sub(r'(\w+)\s*->\s*\((.*?)\)\((.*?)\)', r'\1 = ->(\2) { \3 }', line)
 
         # Replace writes with puts
-        line = re.sub(r'^writes\s+', 'puts ', line)
+        match = re.match(r'^\s*writes\s+(.+)', line)
+        if match:
+            expr = match.group(1)
+            expr = re.sub(r'(\b\w+\b)(?=[^a-zA-Z0-9_]*[+-/*]?)', r'\1.to_s', expr)
+            line = f'puts {expr}'
 
-        # Replace print with print (no newline)
+        # Replace print with Ruby print
         line = re.sub(r'^print\s+', 'print ', line)
 
-        # Replace .append(x) with << x
-        line = re.sub(r'\.append\((.*?)\)', r' << \1', line)
+        # Replace control structures
+        line = re.sub(r'\bif (.+?) then\b', r'if \1', line)
+        line = re.sub(r'\belsif (.+?) then\b', r'elsif \1', line)
+        line = re.sub(r'\belse then\b', r'else', line)
+        line = re.sub(r'\bwhile (.+)', r'while \1', line)
+        line = re.sub(r'\bunless (.+)', r'unless \1', line)
+        line = re.sub(r'\bfor (\w+) in (.+)', r'for \1 in \2', line)
 
-        # Replace .pop() with .pop
-        line = re.sub(r'\.pop\(\)', r'.pop', line)
+        # Convert .enumerate
+        m = re.match(r'^\s*(\[.*\])\.enumerate (\w+)', line)
+        if m:
+            arr = m.group(1)
+            var = m.group(2)
+            line = f'{arr}.each_with_index do |{var}, index|'
 
-        # Replace .replace({...}) with merge!({...})
-        line = re.sub(r'\.replace\((.*?)\)', r'.merge!(\1)', line)
+        # Replace end if not part of Ruby syntax already
+        if stripped == 'end':
+            line = 'end'
 
         result.append(line)
+
     return "\n".join(result)
+
 def run_gold_file(filename):
     try:
         with open(filename, 'r') as f:
