@@ -10,6 +10,9 @@ def preprocess_gold(code):
         if not stripped or stripped.startswith("#"):
             continue  # skip comments and blank lines
 
+        # Remove Gold 'var' keyword
+        line = re.sub(r'^\s*var\s+', '', line)
+
         # Convert Gold lambda: name -> (var)(expr) -> Ruby: name = ->(var) { expr }
         line = re.sub(r'(\w+)\s*->\s*\((.*?)\)\((.*?)\)', r'\1 = ->(\2) { \3 }', line)
 
@@ -28,8 +31,6 @@ def preprocess_gold(code):
         # Replace .replace({...}) with merge!({...})
         line = re.sub(r'\.replace\((.*?)\)', r'.merge!(\1)', line)
 
-        # Replace .length with .length
-        # .keys, .values, .upcase, .downcase, etc. are Ruby compatible already
         result.append(line)
     return "\n".join(result)
 def run_gold_file(filename):
